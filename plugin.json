@@ -7,11 +7,6 @@
     "author": "Jklein64",
     "authorEmail": "jklein.64@verizon.net",
     "authorUrl": "https://jasonklein.dev/",
-    "pluginUrl": "",
-    "manualUrl": "",
-    "sourceUrl": "",
-    "donateUrl": "",
-    "changelogUrl": "",
     "minRackVersion": "2.4.0",
     "modules": [
         {
