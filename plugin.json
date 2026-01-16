@@ -1,7 +1,7 @@
 {
     "slug": "Learning",
     "name": "Learning",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "license": "MIT",
     "brand": "Learning",
     "author": "Jklein64",
@@ -12,5 +12,17 @@
     "sourceUrl": "",
     "donateUrl": "",
     "changelogUrl": "",
-    "modules": []
+    "minRackVersion": "2.4.0",
+    "modules": [
+        {
+            "slug": "blank",
+            "name": "Blank",
+            "description": "Generic blank panel",
+            "manualUrl": "https://github.com/Paul-Dempsey/GenericBlank/blob/main/doc/Blank.md#blank",
+            "tags": [
+                "Visual",
+                "Blank"
+            ]
+        }
+    ]
 }
