@@ -1,0 +1,16 @@
+{
+    "slug": "Learning",
+    "name": "Learning",
+    "version": "1.0.0",
+    "license": "MIT",
+    "brand": "Learning",
+    "author": "Jklein64",
+    "authorEmail": "jklein.64@verizon.net",
+    "authorUrl": "https://jasonklein.dev/",
+    "pluginUrl": "",
+    "manualUrl": "",
+    "sourceUrl": "",
+    "donateUrl": "",
+    "changelogUrl": "",
+    "modules": []
+}
