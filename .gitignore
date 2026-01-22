@@ -10,3 +10,6 @@
 /build
 /dep
 /dist
+
+# Non-svg design files
+*.afdesign

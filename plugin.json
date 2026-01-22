@@ -1,23 +1,31 @@
 {
-    "slug": "Learning",
-    "name": "Learning",
-    "version": "2.0.0",
-    "license": "MIT",
-    "brand": "Learning",
-    "author": "Jklein64",
-    "authorEmail": "jklein.64@verizon.net",
-    "authorUrl": "https://jasonklein.dev/",
-    "minRackVersion": "2.4.0",
-    "modules": [
-        {
-            "slug": "blank",
-            "name": "Blank",
-            "description": "Generic blank panel",
-            "manualUrl": "https://github.com/Paul-Dempsey/GenericBlank/blob/main/doc/Blank.md#blank",
-            "tags": [
-                "Visual",
-                "Blank"
-            ]
-        }
-    ]
+  "slug": "Learning",
+  "name": "Learning",
+  "version": "2.0.0",
+  "license": "MIT",
+  "brand": "Learning",
+  "author": "Jklein64",
+  "authorEmail": "jklein.64@verizon.net",
+  "authorUrl": "https://jasonklein.dev/",
+  "minRackVersion": "2.4.0",
+  "modules": [
+    {
+      "slug": "blank",
+      "name": "Blank",
+      "description": "Generic blank panel",
+      "manualUrl": "https://github.com/Paul-Dempsey/GenericBlank/blob/main/doc/Blank.md#blank",
+      "tags": [
+        "Visual",
+        "Blank"
+      ]
+    },
+    {
+      "slug": "Pentagram",
+      "name": "Pentagram",
+      "description": "",
+      "tags": [
+        "Sequencer"
+      ]
+    }
+  ]
 }

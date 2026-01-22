@@ -4,6 +4,7 @@ FLAGS +=
 
 SOURCES += src/plugin.cpp
 SOURCES += src/Blank.cpp
+SOURCES += src/Pentagram.cpp
 
 DISTRIBUTABLES += res
 # DISTRIBUTABLES += presets
