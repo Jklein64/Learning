@@ -1,7 +1,7 @@
 #include "plugin.hpp"
 #include "SvgHelper.hpp"
 
-struct Pentagram : Module {
+struct Summons : Module {
 	enum ParamId {
 		ENUMS(KNOB_PARAMS, 5),
 		PARAMS_LEN
@@ -20,7 +20,7 @@ struct Pentagram : Module {
 		LIGHTS_LEN
 	};
 
-	Pentagram() {
+	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		for (auto i = 0; i < 5; i++) {
 			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
@@ -36,8 +36,8 @@ struct Pentagram : Module {
 };
 
 
-struct PentagramWidget : ModuleWidget, SvgHelper<PentagramWidget> {
-	PentagramWidget(Pentagram* module) {
+struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
+	SummonsWidget(Summons* module) {
 		setModule(module);
 		// Enable development features
 		setDevMode(true);  
@@ -56,8 +56,8 @@ struct PentagramWidget : ModuleWidget, SvgHelper<PentagramWidget> {
 	}
 };
 
-void PentagramWidget::load() {
-	loadPanel(asset::plugin(pluginInstance, "res/Pentagram.svg"));
+void SummonsWidget::load() {
+	loadPanel(asset::plugin(pluginInstance, "res/Summons.svg"));
 
 	addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
@@ -65,14 +65,14 @@ void PentagramWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	for (auto i = 0; i < 5; i++) {
-		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Pentagram::KNOB_PARAMS + i);
-		bindOutput<DarkPJ301MPort>(string::f("gate%d", i + 1), Pentagram::STEP_OUTPUTS + i);
-		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Pentagram::PENTAGRAM_LIGHTS + i);
-		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Pentagram::STEP_LIGHTS + i);
+		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Summons::KNOB_PARAMS + i);
+		bindOutput<DarkPJ301MPort>(string::f("gate%d", i + 1), Summons::STEP_OUTPUTS + i);
+		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Summons::PENTAGRAM_LIGHTS + i);
+		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Summons::STEP_LIGHTS + i);
 	}
 
-	bindInput<DarkPJ301MPort>("clk", Pentagram::CLK_INPUT);
+	bindInput<DarkPJ301MPort>("clk", Summons::CLK_INPUT);
 }
 
 
-Model* modelPentagram = createModel<Pentagram, PentagramWidget>("Pentagram");
+Model* modelSummons = createModel<Summons, SummonsWidget>("summons");
