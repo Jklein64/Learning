@@ -1,6 +1,8 @@
 #include "plugin.hpp"
 #include "SvgHelper.hpp"
 
+#include <iostream>
+
 struct Summons : Module {
 	enum ParamId {
 		ENUMS(KNOB_PARAMS, 5),
@@ -25,6 +27,10 @@ struct Summons : Module {
 		LIGHTS_LEN
 	};
 
+	dsp::SchmittTrigger clockTrigger;
+	dsp::SchmittTrigger resetTrigger;
+	int index = 0;
+
 	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		configInput(CLK_INPUT, "Clock");
@@ -42,6 +48,60 @@ struct Summons : Module {
 	}
 
 	void process(const ProcessArgs& args) override {
+		bool reset = false;
+
+		if (inputs[RST_INPUT].isConnected()) {
+			// Constants copied from SEQ3.cpp
+			reset = resetTrigger.process(inputs[RST_INPUT].getVoltage(), 0.1f, 2.f);
+			if (reset) {
+				index = 0;
+			}
+		}
+
+		if (inputs[CLK_INPUT].isConnected()) {
+			// Constants copied from SEQ3.cpp
+			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
+			// If clock and reset happen close together, ignore the clock
+			if (clock && !reset) {
+				// Remap; p = 1 when chaos = 0, p = 1/3 when chaos = 1
+				auto p = 1.f - 2.f / 3.f * params[CHAOS_KNOB_PARAM].value;
+				std::cout << "p = " << p << std::endl;
+				auto rand = random::uniform();
+				std::cout << "rand = " << rand << std::endl;
+				if (rand < p) {
+					// Take the circle path
+					std::cout << "took circle path" << std::endl;
+					std::cout << "index: " << index << " -> ";
+					index++;
+				} else {
+					// Decide an alternate path uniformly
+					if (2 * rand < 1 - p) {
+						// Take the closer pentagram path
+						std::cout << "took closer path" << std::endl;
+						std::cout << "index: " << index << " -> ";
+						index += 2;
+					} else {
+						// Take the farther pentagram path
+						std::cout << "took farther path" << std::endl;
+						std::cout << "index: " << index << " -> ";
+						index += 3;
+					}
+				}
+				// index += (rand < 1 / 3) ? 1 : (rand < 2 / 3) ? 2 : 3;
+				if (index >= 5) {
+					index %= 5;
+				}
+				std::cout << index << std::endl;
+			}
+		}
+
+		for (auto i = 0; i < 5; i++) {
+			outputs[STEP_OUTPUTS + i].setVoltage((index == i) ? 10.f : 0.f);
+			lights[STEP_LIGHTS + i].setBrightness((index == i) ? 10.f : 0.f);
+			lights[PENTAGRAM_LIGHTS + i].setBrightness((index == i) ? 10.f : 0.f);
+		}
+
+		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
 	}
 };
 
