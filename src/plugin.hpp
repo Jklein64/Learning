@@ -9,3 +9,11 @@ extern Plugin* pluginInstance;
 
 extern Model* modelBlank;
 extern Model* modelPentagram;
+
+template <typename TBase = GrayModuleLightWidget>
+struct YellowRedLight : TBase {
+	YellowRedLight() {
+		this->addBaseColor(SCHEME_YELLOW);
+		this->addBaseColor(SCHEME_RED);
+	}
+};
