@@ -8,10 +8,12 @@ struct Summons : Module {
 	};
 	enum InputId {
 		CLK_INPUT,
+		RST_INPUT,
 		INPUTS_LEN
 	};
 	enum OutputId {
 		ENUMS(STEP_OUTPUTS, 5),
+		CV_OUTPUT,
 		OUTPUTS_LEN
 	};
 	enum LightId {
@@ -22,9 +24,11 @@ struct Summons : Module {
 
 	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
+		configInput(CLK_INPUT, "Clock");
+		configInput(RST_INPUT, "Reset");
+		configOutput(CV_OUTPUT, "CV");
 		for (auto i = 0; i < 5; i++) {
 			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
-			configInput(CLK_INPUT, "Clock");
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 			configLight(PENTAGRAM_LIGHTS + i);
 			configLight(STEP_LIGHTS + i);
@@ -72,6 +76,8 @@ void SummonsWidget::load() {
 	}
 
 	bindInput<DarkPJ301MPort>("clk", Summons::CLK_INPUT);
+	bindInput<DarkPJ301MPort>("rst", Summons::RST_INPUT);
+	bindOutput<DarkPJ301MPort>("cv", Summons::CV_OUTPUT);
 }
 
 
