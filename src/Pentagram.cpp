@@ -7,6 +7,7 @@ struct Pentagram : Module {
 		PARAMS_LEN
 	};
 	enum InputId {
+		CLK_INPUT,
 		INPUTS_LEN
 	};
 	enum OutputId {
@@ -23,6 +24,7 @@ struct Pentagram : Module {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		for (auto i = 0; i < 5; i++) {
 			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
+			configInput(CLK_INPUT, "Clock");
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 			configLight(PENTAGRAM_LIGHTS + i);
 			configLight(STEP_LIGHTS + i);
@@ -64,10 +66,12 @@ void PentagramWidget::load() {
 
 	for (auto i = 0; i < 5; i++) {
 		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Pentagram::KNOB_PARAMS + i);
-		bindOutput<PJ301MPort>(string::f("gate%d", i + 1), Pentagram::STEP_OUTPUTS + i);
+		bindOutput<DarkPJ301MPort>(string::f("gate%d", i + 1), Pentagram::STEP_OUTPUTS + i);
 		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Pentagram::PENTAGRAM_LIGHTS + i);
 		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Pentagram::STEP_LIGHTS + i);
 	}
+
+	bindInput<DarkPJ301MPort>("clk", Pentagram::CLK_INPUT);
 }
 
 
