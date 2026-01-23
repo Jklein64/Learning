@@ -5,7 +5,6 @@ FLAGS += -Idep/vcv-svghelper/include
 SOURCES += src/plugin.cpp
 SOURCES += src/Blank.cpp
 SOURCES += src/Pentagram.cpp
-SOURCES += src/Example.cpp
 
 DISTRIBUTABLES += res
 # DISTRIBUTABLES += presets
