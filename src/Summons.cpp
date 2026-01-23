@@ -63,8 +63,11 @@ struct Summons : Module {
 			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
 			// If clock and reset happen close together, ignore the clock
 			if (clock && !reset) {
+				auto chaosMod = params[CHAOS_MOD_PARAM].value;
+				auto chaosCv = inputs[CHAOS_CV_INPUT].getVoltage();
+				auto chaos = params[CHAOS_KNOB_PARAM].value + chaosMod * chaosCv;
 				// Remap so p = 1 when chaos = 0, p = 1/3 when chaos = 1
-				auto p = 1.f - 2.f / 3.f * params[CHAOS_KNOB_PARAM].value;
+				auto p = 1.f - 2.f / 3.f * rack::clamp(chaos);
 				auto rand = random::uniform();
 				if (rand < p) {
 					index++; // circle path
