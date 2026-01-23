@@ -65,8 +65,8 @@ void PentagramWidget::load() {
 	for (auto i = 0; i < 5; i++) {
 		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Pentagram::KNOB_PARAMS + i);
 		bindOutput<PJ301MPort>(string::f("gate%d", i + 1), Pentagram::STEP_OUTPUTS + i);
-		bindLight<MediumLight<WhiteLight>>(string::f("light%d", i + 1), Pentagram::PENTAGRAM_LIGHTS + i);
-		bindLight<TinyLight<YellowRedLight<>>>(string::f("steplight%d", i+1), Pentagram::STEP_LIGHTS + i);
+		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Pentagram::PENTAGRAM_LIGHTS + i);
+		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Pentagram::STEP_LIGHTS + i);
 	}
 }
 
