@@ -8,7 +8,6 @@
 *.dylib
 *.dll
 /build
-/dep
 /dist
 
 # Non-svg design files

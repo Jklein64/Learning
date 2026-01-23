@@ -1,0 +1,3 @@
+[submodule "dep/vcv-svghelper"]
+	path = dep/vcv-svghelper
+	url = https://github.com/dustinlacewell/vcv-svghelper.git
