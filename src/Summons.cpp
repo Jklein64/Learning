@@ -4,11 +4,14 @@
 struct Summons : Module {
 	enum ParamId {
 		ENUMS(KNOB_PARAMS, 5),
+		PROB_PARAM,
+		PROB_MOD_PARAM,
 		PARAMS_LEN
 	};
 	enum InputId {
 		CLK_INPUT,
 		RST_INPUT,
+		PROB_CV_INPUT,
 		INPUTS_LEN
 	};
 	enum OutputId {
@@ -26,6 +29,9 @@ struct Summons : Module {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		configInput(CLK_INPUT, "Clock");
 		configInput(RST_INPUT, "Reset");
+		configInput(PROB_CV_INPUT, "Probability");
+		configParam(PROB_PARAM, 0.f, 1.f, 0.1f, "Probability");
+		configParam(PROB_MOD_PARAM, 0.f, 1.f, 0.f, "Probability CV", "%", 0, 100);
 		configOutput(CV_OUTPUT, "CV");
 		for (auto i = 0; i < 5; i++) {
 			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
@@ -75,8 +81,11 @@ void SummonsWidget::load() {
 		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Summons::STEP_LIGHTS + i);
 	}
 
+	bindParam<Trimpot>("probmod", Summons::PROB_MOD_PARAM);
+	bindParam<RoundBigBlackKnob>("probknob", Summons::PROB_PARAM);
 	bindInput<DarkPJ301MPort>("clk", Summons::CLK_INPUT);
 	bindInput<DarkPJ301MPort>("rst", Summons::RST_INPUT);
+	bindInput<DarkPJ301MPort>("probcv", Summons::PROB_CV_INPUT);
 	bindOutput<DarkPJ301MPort>("cv", Summons::CV_OUTPUT);
 }
 
