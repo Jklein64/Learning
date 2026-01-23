@@ -42,8 +42,6 @@ struct Summons : Module {
 		for (auto i = 0; i < 5; i++) {
 			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
-			configLight(PENTAGRAM_LIGHTS + i);
-			configLight(STEP_LIGHTS + i);
 		}
 	}
 
