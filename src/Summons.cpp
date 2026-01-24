@@ -30,6 +30,7 @@ struct Summons : Module {
 	dsp::SchmittTrigger clockTrigger;
 	dsp::SchmittTrigger resetTrigger;
 	int index = 0;
+	int transition = 0;
 
 	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -53,6 +54,7 @@ struct Summons : Module {
 			reset = resetTrigger.process(inputs[RST_INPUT].getVoltage(), 0.1f, 2.f);
 			if (reset) {
 				index = 0;
+				transition = 0;
 			}
 		}
 
@@ -61,6 +63,7 @@ struct Summons : Module {
 			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
 			// If clock and reset happen close together, ignore the clock
 			if (clock && !reset) {
+				transition = 10 * (index + 1);
 				auto chaosMod = params[CHAOS_MOD_PARAM].value;
 				auto chaosCv = inputs[CHAOS_CV_INPUT].getVoltage();
 				auto chaos = params[CHAOS_KNOB_PARAM].value + chaosMod * chaosCv;
@@ -81,7 +84,11 @@ struct Summons : Module {
 				if (index >= 5) {
 					index %= 5;
 				}
+
+				transition += (index + 1);
+				std::cout << "transition = " << transition << std::endl;
 			}
+
 		}
 
 		for (auto i = 0; i < 5; i++) {
@@ -94,21 +101,89 @@ struct Summons : Module {
 	}
 };
 
+static constexpr std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
+struct Transition {
+	int id;
+	SvgWidget* widget;
+};
+
+struct Transitions {
+	std::array<Transition, 15> transitions;
+
+	bool apply(int id) {
+		int index = idToIndex(id);
+		if (index >= 0) {
+			for (size_t i = 0; i < transitions.size(); i++) {
+				if (auto* widget = transitions[i].widget) {
+					widget->setVisible(static_cast<int>(i) == index);
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool setWidget(int id, SvgWidget* widget) {
+		int i = idToIndex(id);
+		if (i >= 0) {
+			transitions[i].id = id;
+			transitions[i].widget = widget;
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	int idToIndex(int id) const {
+		switch(id) {
+			// Circle
+			case 12: return 0;
+			case 23: return 1; 
+			case 34: return 2;
+			case 45: return 3;
+			case 51: return 4;
+			// Close pentagram path
+			// case 13: return 5;
+			// case 24: return 6;
+			// case 35: return 7;
+			// case 41: return 8;
+			// case 52: return 9;
+			// // Far pentagram path
+			// case 14: return 10;
+			// case 25: return 11;
+			// case 31: return 12;
+			// case 42: return 13;
+			// case 53: return 14;
+			// Invalid ID
+			default: return -1;
+		}
+	}
+ };
+
 
 struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
-	std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
-	std::array<NSVGshape*, 15> transitionShapes;
+	Transitions transitions;
+	int lastId = 0;
 
 	SummonsWidget(Summons* module) {
 		setModule(module);
 		// Enable development features
 		setDevMode(true);  
 		load();
+		std::cout << "finished loading" << std::endl;
 	}
 
 	void load();
 
 	void step() override {
+		int id = static_cast<Summons*>(module)->transition;
+		if (id != lastId) {
+			transitions.apply(id);
+			std::cout << "transitioned!" << std::endl;
+			lastId = id;
+		}
+
         ModuleWidget::step();
         SvgHelper::step();
     }
@@ -127,12 +202,33 @@ void SummonsWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	// Load transitions by ID
-	for (size_t i = 0; i < transitionIds.size(); i++) {
-		int id = transitionIds[i];
+	for (int id : transitionIds) {
 		if (auto* shape = findNamed(string::f("c%d", id))) {
-			shape->opacity = 0.5f;
-			shape->flags |= NSVG_FLAGS_VISIBLE;
-			transitionShapes[i] = shape;
+			float x = shape->bounds[0], y = shape->bounds[1];
+			float w = shape->bounds[2] - x, h = shape->bounds[3] - y;
+			auto* widget = createWidget<SvgWidget>(Vec(0, 0));
+			auto svg = std::make_shared<window::Svg>();
+			auto* image = new NSVGimage();
+			image->width = w;
+			image->height = h;
+			// Clone the shape for modification
+			auto* newShape = new NSVGshape(*shape);
+			// NSVGimage.shape is a linked list of all the shapes, so set the next 
+			// shape to NULL (not nullptr because it's C) to only use the one we want
+			newShape->next = NULL;
+			// Make visible (nanosvg turns some attributes into flags)
+			newShape->flags |= NSVG_FLAGS_VISIBLE;
+			// newShape->opacity = 0.f;
+			// shape->opacity = 0.0f;
+			// shape->flags |= NSVG_FLAGS_VISIBLE;
+			image->shapes = newShape;
+			svg->handle = image;
+			widget->setSvg(svg);
+			addChild(widget);
+			widget->setVisible(false);
+			transitions.setWidget(id, widget);
+		} else {
+			WARN("Unable to find shape in svg with id \"c%d\"", id);
 		}
 	}
 
