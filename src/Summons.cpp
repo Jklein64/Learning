@@ -101,6 +101,15 @@ struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
 		// Enable development features
 		setDevMode(true);  
 		load();
+
+		// for (auto& segment : {"c12"}) {
+		// 	auto* shape = findNamed(segment);
+		// 	assert(shape != nullptr);
+		// 	auto svgFilename = string::f("res/Summons/%s.svg", segment);
+		// 	auto* svgWidget = createWidget<SvgWidget>(Vec(shape->bounds[0], shape->bounds[1]));
+		// 	svgWidget->setSvg(window::Svg::load(asset::plugin(pluginInstance, svgFilename)));
+		// 	addChild(svgWidget);
+		// }
 	}
 
 	void load();
@@ -122,6 +131,28 @@ void SummonsWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
 	addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+
+	const auto* c12 = findNamed("c12");
+	float x = c12->bounds[0], y = c12->bounds[1];
+	float w = c12->bounds[2] - x, h = c12->bounds[3] - y;
+	auto* c12SvgWidget = createWidget<SvgWidget>(Vec(0, 0));
+	auto svg = std::make_shared<window::Svg>();
+	auto* image = new NSVGimage();
+	image->width = w;
+	image->height = h;
+	// TODO this is temp to test
+	auto* shape = new NSVGshape(*c12);
+	shape->bounds[0] = 0.f;
+	shape->bounds[1] = 0.f;
+	shape->bounds[2] = w;
+	shape->bounds[3] = h;
+	shape->next = NULL;
+	// Make visible
+	shape->flags |= NSVG_FLAGS_VISIBLE;
+	image->shapes = shape;
+	svg->handle = image;	
+	c12SvgWidget->setSvg(svg);
+	addChild(c12SvgWidget);
 
 	for (auto i = 0; i < 5; i++) {
 		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Summons::KNOB_PARAMS + i);
