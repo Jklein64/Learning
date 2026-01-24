@@ -132,27 +132,27 @@ void SummonsWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-	const auto* c12 = findNamed("c12");
-	float x = c12->bounds[0], y = c12->bounds[1];
-	float w = c12->bounds[2] - x, h = c12->bounds[3] - y;
-	auto* c12SvgWidget = createWidget<SvgWidget>(Vec(0, 0));
-	auto svg = std::make_shared<window::Svg>();
-	auto* image = new NSVGimage();
-	image->width = w;
-	image->height = h;
-	// TODO this is temp to test
-	auto* shape = new NSVGshape(*c12);
-	shape->bounds[0] = 0.f;
-	shape->bounds[1] = 0.f;
-	shape->bounds[2] = w;
-	shape->bounds[3] = h;
-	shape->next = NULL;
-	// Make visible
-	shape->flags |= NSVG_FLAGS_VISIBLE;
-	image->shapes = shape;
-	svg->handle = image;	
-	c12SvgWidget->setSvg(svg);
-	addChild(c12SvgWidget);
+	for (auto id : {"c12", "c23", "c34", "c45", "c51"}) {
+		const auto* shape = findNamed(id);
+		float x = shape->bounds[0], y = shape->bounds[1];
+		float w = shape->bounds[2] - x, h = shape->bounds[3] - y;
+		auto* widget = createWidget<SvgWidget>(Vec(0, 0));
+		auto svg = std::make_shared<window::Svg>();
+		auto* image = new NSVGimage();
+		image->width = w;
+		image->height = h;
+		// Clone the shape for modification
+		auto* newShape = new NSVGshape(*shape);
+		// NSVGimage.shape is a linked list of all the shapes, so set the next 
+		// shape to NULL (not nullptr because it's C) to only use the one we want
+		newShape->next = NULL;
+		// Make visible (nanosvg turns some attributes into flags)
+		newShape->flags |= NSVG_FLAGS_VISIBLE;
+		image->shapes = newShape;
+		svg->handle = image;	
+		widget->setSvg(svg);
+		addChild(widget);
+	}
 
 	for (auto i = 0; i < 5; i++) {
 		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Summons::KNOB_PARAMS + i);
