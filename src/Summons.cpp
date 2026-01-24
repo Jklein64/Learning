@@ -96,20 +96,14 @@ struct Summons : Module {
 
 
 struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
+	std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
+	std::array<NSVGshape*, 15> transitionShapes;
+
 	SummonsWidget(Summons* module) {
 		setModule(module);
 		// Enable development features
 		setDevMode(true);  
 		load();
-
-		// for (auto& segment : {"c12"}) {
-		// 	auto* shape = findNamed(segment);
-		// 	assert(shape != nullptr);
-		// 	auto svgFilename = string::f("res/Summons/%s.svg", segment);
-		// 	auto* svgWidget = createWidget<SvgWidget>(Vec(shape->bounds[0], shape->bounds[1]));
-		// 	svgWidget->setSvg(window::Svg::load(asset::plugin(pluginInstance, svgFilename)));
-		// 	addChild(svgWidget);
-		// }
 	}
 
 	void load();
@@ -132,26 +126,14 @@ void SummonsWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-	for (auto id : {"c12", "c23", "c34", "c45", "c51"}) {
-		const auto* shape = findNamed(id);
-		float x = shape->bounds[0], y = shape->bounds[1];
-		float w = shape->bounds[2] - x, h = shape->bounds[3] - y;
-		auto* widget = createWidget<SvgWidget>(Vec(0, 0));
-		auto svg = std::make_shared<window::Svg>();
-		auto* image = new NSVGimage();
-		image->width = w;
-		image->height = h;
-		// Clone the shape for modification
-		auto* newShape = new NSVGshape(*shape);
-		// NSVGimage.shape is a linked list of all the shapes, so set the next 
-		// shape to NULL (not nullptr because it's C) to only use the one we want
-		newShape->next = NULL;
-		// Make visible (nanosvg turns some attributes into flags)
-		newShape->flags |= NSVG_FLAGS_VISIBLE;
-		image->shapes = newShape;
-		svg->handle = image;	
-		widget->setSvg(svg);
-		addChild(widget);
+	// Load transitions by ID
+	for (size_t i = 0; i < transitionIds.size(); i++) {
+		int id = transitionIds[i];
+		if (auto* shape = findNamed(string::f("c%d", id))) {
+			shape->opacity = 0.5f;
+			shape->flags |= NSVG_FLAGS_VISIBLE;
+			transitionShapes[i] = shape;
+		}
 	}
 
 	for (auto i = 0; i < 5; i++) {
