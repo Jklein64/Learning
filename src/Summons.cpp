@@ -1,7 +1,7 @@
 #include "plugin.hpp"
 #include "SvgHelper.hpp"
 
-#include <iostream>
+// TODO fix segfault when loading the panel selection previewer
 
 struct Transition {
 	// One-indexed two-digit transition ID
@@ -156,7 +156,8 @@ struct Summons : Module {
 		}
 
 		for (auto i = 0; i < transitions.size(); i++) {
-			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 10.f);
+			// Hold just long enough to consistently see pentagram at ~180 BPM with 100% chaos
+			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 1.75f);
 		}
 
 		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
