@@ -110,18 +110,12 @@ struct Transition {
 struct Transitions {
 	std::array<Transition, 15> transitions;
 
-	bool apply(int id) {
-		int index = idToIndex(id);
-		if (index >= 0) {
-			for (size_t i = 0; i < transitions.size(); i++) {
-				if (auto* widget = transitions[i].widget) {
-					widget->setVisible(static_cast<int>(i) == index);
-					return true;
-				}
+	void apply(int id) {
+		for (auto& transition : transitions) {
+			if (auto* widget = transition.widget) {
+				widget->setVisible(transition.id == id);
 			}
 		}
-
-		return false;
 	}
 
 	bool setWidget(int id, SvgWidget* widget) {
@@ -218,11 +212,13 @@ void SummonsWidget::load() {
 			newShape->next = NULL;
 			// Make visible (nanosvg turns some attributes into flags)
 			newShape->flags |= NSVG_FLAGS_VISIBLE;
-			// newShape->opacity = 0.f;
-			// shape->opacity = 0.0f;
-			// shape->flags |= NSVG_FLAGS_VISIBLE;
 			image->shapes = newShape;
 			svg->handle = image;
+			// Create and add widget and light as child
+			// auto* light = createLight<SvgLight>(Vec(0, 0), module, 0);
+			// light->setSvg(svg);
+			// SvgHelper::addReloadableLight(string::f("c%d", id), light);
+			// auto* widget = createWidget<SvgWidget>(Vec(0, 0));
 			widget->setSvg(svg);
 			addChild(widget);
 			widget->setVisible(false);
@@ -236,8 +232,13 @@ void SummonsWidget::load() {
 		bindParam<RoundBlackKnob>(string::f("knob%d", i + 1), Summons::KNOB_PARAMS + i);
 		bindOutput<DarkPJ301MPort>(string::f("gate%d", i + 1), Summons::STEP_OUTPUTS + i);
 		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Summons::PENTAGRAM_LIGHTS + i);
-		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i+1), Summons::STEP_LIGHTS + i);
+		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i + 1), Summons::STEP_LIGHTS + i);
 	}
+
+	// for (auto i = 0; i < transitionIds.size(); i++) {
+	// 	auto id = transitionIds[i];
+	// 	bindLight<SvgLight>(string::f("c%d", id), Summons::SVG_LIGHTS + i);
+	// }
 
 	bindParam<Trimpot>("chaosmod", Summons::CHAOS_MOD_PARAM);
 	bindParam<RoundBigBlackKnob>("chaosknob", Summons::CHAOS_KNOB_PARAM);
