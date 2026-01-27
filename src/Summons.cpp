@@ -1,8 +1,6 @@
 #include "plugin.hpp"
 #include "SvgHelper.hpp"
 
-// TODO fix segfault when loading the panel selection previewer
-
 struct Transition {
 	// One-indexed two-digit transition ID
 	int index, a, b;
@@ -95,7 +93,7 @@ struct Summons : Module {
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 		}
 
-		for (auto i = 0; i < transitions.size(); i++) {
+		for (size_t i = 0; i < transitions.size(); i++) {
 			lights[TRANSITION_LIGHTS + i].setBrightness(0.f);
 			brightnesses[i] = 0.f;
 		}
@@ -141,8 +139,8 @@ struct Summons : Module {
 
 				auto t = Transition::from(a, index + 1);
 				if (t.index >= 0) {
-					for (auto i = 0; i < transitions.size(); i++) {
-						brightnesses[i] = 3.f * (t.index == i);
+					for (size_t i = 0; i < transitions.size(); i++) {
+						brightnesses[i] = 3.f * (t.index == static_cast<int>(i));
 					}
 				}
 			}
@@ -155,7 +153,7 @@ struct Summons : Module {
 			lights[PENTAGRAM_LIGHTS + i].setBrightnessSmooth(3.f * (index == i), args.sampleTime, 10.f);
 		}
 
-		for (auto i = 0; i < transitions.size(); i++) {
+		for (size_t i = 0; i < transitions.size(); i++) {
 			// Hold just long enough to consistently see pentagram at ~180 BPM with 100% chaos
 			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 1.75f);
 		}
@@ -170,19 +168,23 @@ struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
 	SummonsWidget(Summons* module) {
 		setModule(module);
 		// Enable development features
-		setDevMode(true);  
+		setDevMode(true);
+		// Otherwise they're uninitialized
+		transitionWidgets.fill(nullptr);
 		load();
 	}
 
 	void load();
 
 	void step() override {
-		for (size_t i = 0; i < transitionWidgets.size(); i++) {
-			if (auto* widget = transitionWidgets[i]) {
-				auto* moduleSummons = static_cast<Summons*>(module);
-				auto& light = moduleSummons->lights[Summons::TRANSITION_LIGHTS + i];
-				// Assumes that this is only for transition widgets, which have exactly one shape
-				widget->svg->handle->shapes[0].opacity = rack::clamp(light.getBrightness());
+		if (auto* moduleSummons = static_cast<Summons*>(module)) {
+			for (size_t i = 0; i < transitionWidgets.size(); i++) {
+				if (auto* widget = transitionWidgets[i]) {
+					assert(moduleSummons != nullptr);
+					auto& light = moduleSummons->lights[Summons::TRANSITION_LIGHTS + i];
+					// Assumes that this is only for transition widgets, which have exactly one shape
+					widget->svg->handle->shapes[0].opacity = rack::clamp(light.getBrightness());
+				}
 			}
 		}
 
@@ -215,6 +217,21 @@ void SummonsWidget::load() {
 			image->height = h;
 			// Clone the shape for modification
 			auto* newShape = new NSVGshape(*shape);
+			// Duplicate paths since that's a nested pointer and copy ctor is shallow
+			NSVGpath* head = NULL;
+			NSVGpath* prev = NULL;
+			NSVGpath* curr = shape->paths;
+			while (curr != NULL) {
+				auto* dupe = nsvgDuplicatePath(curr);
+				if (prev == NULL) {
+					head = dupe;
+				} else {
+					prev->next = dupe;
+				}
+				prev = dupe;
+				curr = curr->next;
+			}
+			newShape->paths = head;
 			// NSVGimage.shape is a linked list of all the shapes, so set the next 
 			// shape to NULL (not nullptr because it's C) to only use the one we want
 			newShape->next = NULL;
@@ -228,9 +245,12 @@ void SummonsWidget::load() {
 			// Make transparent to start; SVG is always one shape
 			widget->svg->handle->shapes[0].opacity = 0.f;
 			// Add widget to local array (assumes i is always a valid index)
-			assert(transitionWidgets[t.index] == nullptr);
+			if (transitionWidgets[t.index] != nullptr) {
+				DEBUG("Overwriting widget at index %d, ptr = %x", t.index, transitionWidgets[t.index]);
+				delete transitionWidgets[t.index];
+			}
 			transitionWidgets[t.index] = widget;
-			DEBUG("Added transition \"%s\" at index %lu", t.id().c_str(), t.index);
+			DEBUG("Added transition \"%s\" at index %d", t.id().c_str(), t.index);
 		} else {
 			WARN("Unable to find shape in svg with id \"%s\"", t.id().c_str());
 		}
