@@ -3,33 +3,54 @@
 
 #include <iostream>
 
+struct Transition {
+	// One-indexed two-digit transition ID
+	int index, a, b;
 
-static constexpr std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
-
-int transitionIdToIndex(int id) {
-	switch(id) {
-		// Circle
-		case 12: return 0;
-		case 23: return 1; 
-		case 34: return 2;
-		case 45: return 3;
-		case 51: return 4;
-		// Close pentagram path
-		// case 13: return 5;
-		// case 24: return 6;
-		// case 35: return 7;
-		// case 41: return 8;
-		// case 52: return 9;
-		// // Far pentagram path
-		// case 14: return 10;
-		// case 25: return 11;
-		// case 31: return 12;
-		// case 42: return 13;
-		// case 53: return 14;
-		// Invalid ID
-		default: return -1;
+	std::string id() {
+		return string::f("c%d%d", a, b);
 	}
-}
+
+	static Transition from(int a, int b) {
+		int index = -1;
+		switch(10 * a + b) {
+			// Inner
+			case 12:
+			case 21: index = 0; break;
+			case 23: 
+			case 32: index = 1; break; 
+			case 34:
+			case 43: index = 2; break;
+			case 45:
+			case 54: index = 3; break;
+			case 51:
+			case 15: index = 4; break;
+			// Outer
+			case 13:
+			case 31: index = 5; break;
+			case 24:
+			case 42: index = 6; break;
+			case 35:
+			case 53: index = 7; break;
+			case 41:
+			case 14: index = 8; break;
+			case 52:
+			case 25: index = 9; break;
+		}
+
+		if (index < 0) {
+			WARN("Could not find index for transition from %d to %d", a, b);
+			return Transition { 0, 1, 2 };
+		}
+
+		return Transition { index, a, b };
+	}
+};
+
+static constexpr std::array<Transition, 10> transitions = {{ 
+	{ 0, 1, 2 }, { 1, 2, 3 }, { 2, 3, 4 }, { 3, 4, 5 }, { 4, 5, 1 }, // outer
+	{ 5, 1, 3 }, { 6, 2, 4 }, { 7, 3, 5 }, { 8, 4, 1 }, { 9, 5, 2 }  // inner
+}};
 
 struct Summons : Module {
 	enum ParamId {
@@ -52,16 +73,14 @@ struct Summons : Module {
 	enum LightId {
 		ENUMS(PENTAGRAM_LIGHTS, 5),
 		ENUMS(STEP_LIGHTS, 5),
-		ENUMS(TRANSITION_LIGHTS, 5),
+		ENUMS(TRANSITION_LIGHTS, 10),
 		LIGHTS_LEN
 	};
 
 	dsp::SchmittTrigger clockTrigger;
 	dsp::SchmittTrigger resetTrigger;
 	int index = 0;
-	int transition = 0;
-	static constexpr int transitionCount = TRANSITION_LIGHTS_LAST - TRANSITION_LIGHTS + 1;
-	std::array<float, transitionCount> brightnesses;
+	std::array<float, transitions.size()> brightnesses;
 
 	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -76,7 +95,7 @@ struct Summons : Module {
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 		}
 
-		for (auto i = 0; i < transitionCount; i++) {
+		for (auto i = 0; i < transitions.size(); i++) {
 			lights[TRANSITION_LIGHTS + i].setBrightness(0.f);
 			brightnesses[i] = 0.f;
 		}
@@ -90,7 +109,6 @@ struct Summons : Module {
 			reset = resetTrigger.process(inputs[RST_INPUT].getVoltage(), 0.1f, 2.f);
 			if (reset) {
 				index = 0;
-				transition = 0;
 			}
 		}
 
@@ -99,7 +117,7 @@ struct Summons : Module {
 			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
 			// If clock and reset happen close together, ignore the clock
 			if (clock && !reset) {
-				transition = 10 * (index + 1);
+				int a = index + 1;
 				auto chaosMod = params[CHAOS_MOD_PARAM].value;
 				auto chaosCv = inputs[CHAOS_CV_INPUT].getVoltage();
 				auto chaos = params[CHAOS_KNOB_PARAM].value + chaosMod * chaosCv;
@@ -121,15 +139,11 @@ struct Summons : Module {
 					index %= 5;
 				}
 
-				transition += (index + 1);
-				// Transition ID to light ID
-				auto index = transitionIdToIndex(transition);
-				if (index >= 0) {
-					for (auto i = 0; i < transitionCount; i++) {
-						brightnesses[i] = 3.f * (index == i);
+				auto t = Transition::from(a, index + 1);
+				if (t.index >= 0) {
+					for (auto i = 0; i < transitions.size(); i++) {
+						brightnesses[i] = 3.f * (t.index == i);
 					}
-				} else {
-					WARN("Invalid ID for transition %d", transition);
 				}
 			}
 
@@ -141,7 +155,7 @@ struct Summons : Module {
 			lights[PENTAGRAM_LIGHTS + i].setBrightnessSmooth(3.f * (index == i), args.sampleTime, 10.f);
 		}
 
-		for (auto i = 0; i < transitionCount; i++) {
+		for (auto i = 0; i < transitions.size(); i++) {
 			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 10.f);
 		}
 
@@ -150,7 +164,7 @@ struct Summons : Module {
 };
 
 struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
-	std::array<SvgWidget*, 15> transitionWidgets;
+	std::array<SvgWidget*, 10> transitionWidgets;
 
 	SummonsWidget(Summons* module) {
 		setModule(module);
@@ -189,8 +203,8 @@ void SummonsWidget::load() {
 	addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	// Load transitions by ID
-	for (int id : transitionIds) {
-		if (auto* shape = findNamed(string::f("c%d", id))) {
+	for (Transition t : transitions) {
+		if (auto* shape = findNamed(t.id())) {
 			float x = shape->bounds[0], y = shape->bounds[1];
 			float w = shape->bounds[2] - x, h = shape->bounds[3] - y;
 			auto* widget = createWidget<SvgWidget>(Vec(0, 0));
@@ -212,12 +226,12 @@ void SummonsWidget::load() {
 			widget->setVisible(true);
 			// Make transparent to start; SVG is always one shape
 			widget->svg->handle->shapes[0].opacity = 0.f;
-			// Add widget to local array
-			auto i = transitionIdToIndex(id);
-			// Assumes that i is always a valid index
-			transitionWidgets[i] = widget;
+			// Add widget to local array (assumes i is always a valid index)
+			assert(transitionWidgets[t.index] == nullptr);
+			transitionWidgets[t.index] = widget;
+			DEBUG("Added transition \"%s\" at index %lu", t.id().c_str(), t.index);
 		} else {
-			WARN("Unable to find shape in svg with id \"c%d\"", id);
+			WARN("Unable to find shape in svg with id \"%s\"", t.id().c_str());
 		}
 	}
 
