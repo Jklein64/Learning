@@ -3,103 +3,6 @@
 
 #include <iostream>
 
-struct Summons : Module {
-	enum ParamId {
-		ENUMS(KNOB_PARAMS, 5),
-		CHAOS_KNOB_PARAM,
-		CHAOS_MOD_PARAM,
-		PARAMS_LEN
-	};
-	enum InputId {
-		CLK_INPUT,
-		RST_INPUT,
-		CHAOS_CV_INPUT,
-		INPUTS_LEN
-	};
-	enum OutputId {
-		ENUMS(STEP_OUTPUTS, 5),
-		CV_OUTPUT,
-		OUTPUTS_LEN
-	};
-	enum LightId {
-		ENUMS(PENTAGRAM_LIGHTS, 5),
-		ENUMS(STEP_LIGHTS, 5),
-		LIGHTS_LEN
-	};
-
-	dsp::SchmittTrigger clockTrigger;
-	dsp::SchmittTrigger resetTrigger;
-	int index = 0;
-	int transition = 0;
-
-	Summons() {
-		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configInput(CLK_INPUT, "Clock");
-		configInput(RST_INPUT, "Reset");
-		configInput(CHAOS_CV_INPUT, "Chaos");
-		configParam(CHAOS_KNOB_PARAM, 0.f, 1.f, 0.1f, "Chaos", "%", 0, 100);
-		configParam(CHAOS_MOD_PARAM, 0.f, 1.f, 0.f, "Chaos CV", "%", 0, 100);
-		configOutput(CV_OUTPUT, "CV");
-		for (auto i = 0; i < 5; i++) {
-			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
-			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
-		}
-	}
-
-	void process(const ProcessArgs& args) override {
-		bool reset = false;
-
-		if (inputs[RST_INPUT].isConnected()) {
-			// Constants copied from SEQ3.cpp
-			reset = resetTrigger.process(inputs[RST_INPUT].getVoltage(), 0.1f, 2.f);
-			if (reset) {
-				index = 0;
-				transition = 0;
-			}
-		}
-
-		if (inputs[CLK_INPUT].isConnected()) {
-			// Constants copied from SEQ3.cpp
-			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
-			// If clock and reset happen close together, ignore the clock
-			if (clock && !reset) {
-				transition = 10 * (index + 1);
-				auto chaosMod = params[CHAOS_MOD_PARAM].value;
-				auto chaosCv = inputs[CHAOS_CV_INPUT].getVoltage();
-				auto chaos = params[CHAOS_KNOB_PARAM].value + chaosMod * chaosCv;
-				// Remap so p = 1 when chaos = 0, p = 1/3 when chaos = 1
-				auto p = 1.f - 2.f / 3.f * rack::clamp(chaos);
-				auto rand = random::uniform();
-				if (rand < p) {
-					index++; // circle path
-				} else {
-					// Decide an alternate path uniformly
-					if (2 * rand < 1 - p) {
-						index += 2; // closer pentagram path
-					} else {
-						index += 3; // farther pentagram path
-					}
-				}
-
-				if (index >= 5) {
-					index %= 5;
-				}
-
-				transition += (index + 1);
-				std::cout << "transition = " << transition << std::endl;
-			}
-
-		}
-
-		for (auto i = 0; i < 5; i++) {
-			outputs[STEP_OUTPUTS + i].setVoltage((index == i) ? 10.f : 0.f);
-			lights[STEP_LIGHTS + i].setBrightnessSmooth(index == i, args.sampleTime, 90.f);
-			lights[PENTAGRAM_LIGHTS + i].setBrightnessSmooth(3.f * (index == i), args.sampleTime, 10.f);
-		}
-
-		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
-	}
-};
 
 static constexpr std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
 struct Transition {
@@ -155,10 +58,140 @@ struct Transitions {
 	}
  };
 
+struct Summons : Module {
+	enum ParamId {
+		ENUMS(KNOB_PARAMS, 5),
+		CHAOS_KNOB_PARAM,
+		CHAOS_MOD_PARAM,
+		PARAMS_LEN
+	};
+	enum InputId {
+		CLK_INPUT,
+		RST_INPUT,
+		CHAOS_CV_INPUT,
+		INPUTS_LEN
+	};
+	enum OutputId {
+		ENUMS(STEP_OUTPUTS, 5),
+		CV_OUTPUT,
+		OUTPUTS_LEN
+	};
+	enum LightId {
+		ENUMS(PENTAGRAM_LIGHTS, 5),
+		ENUMS(STEP_LIGHTS, 5),
+		ENUMS(SVG_LIGHTS, 5),
+		LIGHTS_LEN
+	};
+
+	dsp::SchmittTrigger clockTrigger;
+	dsp::SchmittTrigger resetTrigger;
+	int index = 0;
+	int transition = 0;
+
+	Summons() {
+		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
+		configInput(CLK_INPUT, "Clock");
+		configInput(RST_INPUT, "Reset");
+		configInput(CHAOS_CV_INPUT, "Chaos");
+		configParam(CHAOS_KNOB_PARAM, 0.f, 1.f, 0.1f, "Chaos", "%", 0, 100);
+		configParam(CHAOS_MOD_PARAM, 0.f, 1.f, 0.f, "Chaos CV", "%", 0, 100);
+		configOutput(CV_OUTPUT, "CV");
+		for (auto i = 0; i < 5; i++) {
+			configParam(KNOB_PARAMS + i,  -10.f, 10.f, 0, string::f("Step %d", i + 1), " V");
+			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
+		}
+
+		for (int i = SVG_LIGHTS; i <= SVG_LIGHTS_LAST; i++) {
+			lights[i].setBrightness(0.f);
+		}
+	}
+
+	void process(const ProcessArgs& args) override {
+		bool reset = false;
+
+		if (inputs[RST_INPUT].isConnected()) {
+			// Constants copied from SEQ3.cpp
+			reset = resetTrigger.process(inputs[RST_INPUT].getVoltage(), 0.1f, 2.f);
+			if (reset) {
+				index = 0;
+				transition = 0;
+			}
+		}
+
+		if (inputs[CLK_INPUT].isConnected()) {
+			// Constants copied from SEQ3.cpp
+			bool clock = clockTrigger.process(inputs[CLK_INPUT].getVoltage(), 0.1f, 2.f);
+			// If clock and reset happen close together, ignore the clock
+			if (clock && !reset) {
+				transition = 10 * (index + 1);
+				auto chaosMod = params[CHAOS_MOD_PARAM].value;
+				auto chaosCv = inputs[CHAOS_CV_INPUT].getVoltage();
+				auto chaos = params[CHAOS_KNOB_PARAM].value + chaosMod * chaosCv;
+				// Remap so p = 1 when chaos = 0, p = 1/3 when chaos = 1
+				auto p = 1.f - 2.f / 3.f * rack::clamp(chaos);
+				auto rand = random::uniform();
+				if (rand < p) {
+					index++; // circle path
+				} else {
+					// Decide an alternate path uniformly
+					if (2 * rand < 1 - p) {
+						index += 2; // closer pentagram path
+					} else {
+						index += 3; // farther pentagram path
+					}
+				}
+
+				if (index >= 5) {
+					index %= 5;
+				}
+
+				transition += (index + 1);
+				// Transition ID to light ID
+				auto light = -1;
+				switch(transition) {
+					// Circle
+					case 12: light = SVG_LIGHTS + 0; break;
+					case 23: light = SVG_LIGHTS + 1; break; 
+					case 34: light = SVG_LIGHTS + 2; break;
+					case 45: light = SVG_LIGHTS + 3; break;
+					case 51: light = SVG_LIGHTS + 4; break;
+					// Close pentagram path
+					// case 13: light = SVG_LIGHTS + 5; break;
+					// case 24: light = SVG_LIGHTS + 6; break;
+					// case 35: light = SVG_LIGHTS + 7; break;
+					// case 41: light = SVG_LIGHTS + 8; break;
+					// case 52: light = SVG_LIGHTS + 9; break;
+					// // Far pentagram path
+					// case 14: light = SVG_LIGHTS + 10 break;
+					// case 25: light = SVG_LIGHTS + 11 break;
+					// case 31: light = SVG_LIGHTS + 12 break;
+					// case 42: light = SVG_LIGHTS + 13 break;
+					// case 53: light = SVG_LIGHTS + 14 break;
+					// Invalid ID
+					// default: return -1;
+				}
+
+				if (light >= 0) {
+					for (int i = SVG_LIGHTS; i <= SVG_LIGHTS_LAST; i++) {
+						lights[i].setBrightness(i == light);
+					}
+				}
+			}
+
+		}
+
+		for (auto i = 0; i < 5; i++) {
+			outputs[STEP_OUTPUTS + i].setVoltage((index == i) ? 10.f : 0.f);
+			lights[STEP_LIGHTS + i].setBrightnessSmooth(index == i, args.sampleTime, 90.f);
+			lights[PENTAGRAM_LIGHTS + i].setBrightnessSmooth(3.f * (index == i), args.sampleTime, 10.f);
+		}
+
+		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
+	}
+};
 
 struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
 	Transitions transitions;
-	int lastId = 0;
 
 	SummonsWidget(Summons* module) {
 		setModule(module);
@@ -171,12 +204,13 @@ struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
 	void load();
 
 	void step() override {
-		int id = static_cast<Summons*>(module)->transition;
-		if (id != lastId) {
-			transitions.apply(id);
-			std::cout << "transitioned!" << std::endl;
-			lastId = id;
+		for (size_t i = 0; i < transitions.transitions.size(); i++) {
+			if (auto* widget = transitions.transitions[i].widget) {
+				auto* moduleSummons = static_cast<Summons*>(module);
+				widget->setVisible(moduleSummons->lights[i].getBrightness() > 0.5f);
+			}
 		}
+
 
         ModuleWidget::step();
         SvgHelper::step();
@@ -214,11 +248,6 @@ void SummonsWidget::load() {
 			newShape->flags |= NSVG_FLAGS_VISIBLE;
 			image->shapes = newShape;
 			svg->handle = image;
-			// Create and add widget and light as child
-			// auto* light = createLight<SvgLight>(Vec(0, 0), module, 0);
-			// light->setSvg(svg);
-			// SvgHelper::addReloadableLight(string::f("c%d", id), light);
-			// auto* widget = createWidget<SvgWidget>(Vec(0, 0));
 			widget->setSvg(svg);
 			addChild(widget);
 			widget->setVisible(false);
@@ -234,11 +263,6 @@ void SummonsWidget::load() {
 		bindLight<MediumLight<RedLight>>(string::f("light%d", i + 1), Summons::PENTAGRAM_LIGHTS + i);
 		bindLight<TinyLight<RedLight>>(string::f("steplight%d", i + 1), Summons::STEP_LIGHTS + i);
 	}
-
-	// for (auto i = 0; i < transitionIds.size(); i++) {
-	// 	auto id = transitionIds[i];
-	// 	bindLight<SvgLight>(string::f("c%d", id), Summons::SVG_LIGHTS + i);
-	// }
 
 	bindParam<Trimpot>("chaosmod", Summons::CHAOS_MOD_PARAM);
 	bindParam<RoundBigBlackKnob>("chaosknob", Summons::CHAOS_KNOB_PARAM);
