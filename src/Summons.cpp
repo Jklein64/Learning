@@ -5,58 +5,31 @@
 
 
 static constexpr std::array<int, 15> transitionIds = { 12, 23, 34, 45, 51, 13, 24, 35, 41, 52, 14, 25, 31, 42, 53 };
-struct Transition {
-	int id;
-	SvgWidget* widget;
-};
 
-struct Transitions {
-	std::array<Transition, 15> transitions;
-
-	void apply(int id) {
-		for (auto& transition : transitions) {
-			if (auto* widget = transition.widget) {
-				widget->setVisible(transition.id == id);
-			}
-		}
+int transitionIdToIndex(int id) {
+	switch(id) {
+		// Circle
+		case 12: return 0;
+		case 23: return 1; 
+		case 34: return 2;
+		case 45: return 3;
+		case 51: return 4;
+		// Close pentagram path
+		// case 13: return 5;
+		// case 24: return 6;
+		// case 35: return 7;
+		// case 41: return 8;
+		// case 52: return 9;
+		// // Far pentagram path
+		// case 14: return 10;
+		// case 25: return 11;
+		// case 31: return 12;
+		// case 42: return 13;
+		// case 53: return 14;
+		// Invalid ID
+		default: return -1;
 	}
-
-	bool setWidget(int id, SvgWidget* widget) {
-		int i = idToIndex(id);
-		if (i >= 0) {
-			transitions[i].id = id;
-			transitions[i].widget = widget;
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	int idToIndex(int id) const {
-		switch(id) {
-			// Circle
-			case 12: return 0;
-			case 23: return 1; 
-			case 34: return 2;
-			case 45: return 3;
-			case 51: return 4;
-			// Close pentagram path
-			// case 13: return 5;
-			// case 24: return 6;
-			// case 35: return 7;
-			// case 41: return 8;
-			// case 52: return 9;
-			// // Far pentagram path
-			// case 14: return 10;
-			// case 25: return 11;
-			// case 31: return 12;
-			// case 42: return 13;
-			// case 53: return 14;
-			// Invalid ID
-			default: return -1;
-		}
-	}
- };
+}
 
 struct Summons : Module {
 	enum ParamId {
@@ -79,7 +52,7 @@ struct Summons : Module {
 	enum LightId {
 		ENUMS(PENTAGRAM_LIGHTS, 5),
 		ENUMS(STEP_LIGHTS, 5),
-		ENUMS(SVG_LIGHTS, 5),
+		ENUMS(TRANSITION_LIGHTS, 5),
 		LIGHTS_LEN
 	};
 
@@ -101,7 +74,7 @@ struct Summons : Module {
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 		}
 
-		for (int i = SVG_LIGHTS; i <= SVG_LIGHTS_LAST; i++) {
+		for (int i = TRANSITION_LIGHTS; i <= TRANSITION_LIGHTS_LAST; i++) {
 			lights[i].setBrightness(0.f);
 		}
 	}
@@ -147,34 +120,14 @@ struct Summons : Module {
 
 				transition += (index + 1);
 				// Transition ID to light ID
-				auto light = -1;
-				switch(transition) {
-					// Circle
-					case 12: light = SVG_LIGHTS + 0; break;
-					case 23: light = SVG_LIGHTS + 1; break; 
-					case 34: light = SVG_LIGHTS + 2; break;
-					case 45: light = SVG_LIGHTS + 3; break;
-					case 51: light = SVG_LIGHTS + 4; break;
-					// Close pentagram path
-					// case 13: light = SVG_LIGHTS + 5; break;
-					// case 24: light = SVG_LIGHTS + 6; break;
-					// case 35: light = SVG_LIGHTS + 7; break;
-					// case 41: light = SVG_LIGHTS + 8; break;
-					// case 52: light = SVG_LIGHTS + 9; break;
-					// // Far pentagram path
-					// case 14: light = SVG_LIGHTS + 10 break;
-					// case 25: light = SVG_LIGHTS + 11 break;
-					// case 31: light = SVG_LIGHTS + 12 break;
-					// case 42: light = SVG_LIGHTS + 13 break;
-					// case 53: light = SVG_LIGHTS + 14 break;
-					// Invalid ID
-					// default: return -1;
-				}
-
-				if (light >= 0) {
-					for (int i = SVG_LIGHTS; i <= SVG_LIGHTS_LAST; i++) {
+				auto idx = transitionIdToIndex(transition);
+				if (idx >= 0) {
+					auto light = TRANSITION_LIGHTS + idx;
+					for (int i = TRANSITION_LIGHTS; i <= TRANSITION_LIGHTS_LAST; i++) {
 						lights[i].setBrightness(i == light);
 					}
+				} else {
+					WARN("Invalid ID for transition %d", transition);
 				}
 			}
 
@@ -191,26 +144,25 @@ struct Summons : Module {
 };
 
 struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
-	Transitions transitions;
+	std::array<SvgWidget*, 15> transitionWidgets;
 
 	SummonsWidget(Summons* module) {
 		setModule(module);
 		// Enable development features
 		setDevMode(true);  
 		load();
-		std::cout << "finished loading" << std::endl;
 	}
 
 	void load();
 
 	void step() override {
-		for (size_t i = 0; i < transitions.transitions.size(); i++) {
-			if (auto* widget = transitions.transitions[i].widget) {
+		for (size_t i = 0; i < transitionWidgets.size(); i++) {
+			if (auto* widget = transitionWidgets[i]) {
 				auto* moduleSummons = static_cast<Summons*>(module);
-				widget->setVisible(moduleSummons->lights[i].getBrightness() > 0.5f);
+				auto& light = moduleSummons->lights[Summons::TRANSITION_LIGHTS + i];
+				widget->setVisible(light.getBrightness() > 0.5f);
 			}
 		}
-
 
         ModuleWidget::step();
         SvgHelper::step();
@@ -251,7 +203,10 @@ void SummonsWidget::load() {
 			widget->setSvg(svg);
 			addChild(widget);
 			widget->setVisible(false);
-			transitions.setWidget(id, widget);
+			// Add widget to local array
+			auto i = transitionIdToIndex(id);
+			// Assumes that i is always a valid index
+			transitionWidgets[i] = widget;
 		} else {
 			WARN("Unable to find shape in svg with id \"c%d\"", id);
 		}
