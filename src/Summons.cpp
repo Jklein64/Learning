@@ -60,6 +60,8 @@ struct Summons : Module {
 	dsp::SchmittTrigger resetTrigger;
 	int index = 0;
 	int transition = 0;
+	static constexpr int transitionCount = TRANSITION_LIGHTS_LAST - TRANSITION_LIGHTS + 1;
+	std::array<float, transitionCount> brightnesses;
 
 	Summons() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -74,8 +76,9 @@ struct Summons : Module {
 			configOutput(STEP_OUTPUTS + i, string::f("Step %d", i + 1));
 		}
 
-		for (int i = TRANSITION_LIGHTS; i <= TRANSITION_LIGHTS_LAST; i++) {
-			lights[i].setBrightness(0.f);
+		for (auto i = 0; i < transitionCount; i++) {
+			lights[TRANSITION_LIGHTS + i].setBrightness(0.f);
+			brightnesses[i] = 0.f;
 		}
 	}
 
@@ -120,11 +123,10 @@ struct Summons : Module {
 
 				transition += (index + 1);
 				// Transition ID to light ID
-				auto idx = transitionIdToIndex(transition);
-				if (idx >= 0) {
-					auto light = TRANSITION_LIGHTS + idx;
-					for (int i = TRANSITION_LIGHTS; i <= TRANSITION_LIGHTS_LAST; i++) {
-						lights[i].setBrightness(i == light);
+				auto index = transitionIdToIndex(transition);
+				if (index >= 0) {
+					for (auto i = 0; i < transitionCount; i++) {
+						brightnesses[i] = 3.f * (index == i);
 					}
 				} else {
 					WARN("Invalid ID for transition %d", transition);
@@ -137,6 +139,10 @@ struct Summons : Module {
 			outputs[STEP_OUTPUTS + i].setVoltage((index == i) ? 10.f : 0.f);
 			lights[STEP_LIGHTS + i].setBrightnessSmooth(index == i, args.sampleTime, 90.f);
 			lights[PENTAGRAM_LIGHTS + i].setBrightnessSmooth(3.f * (index == i), args.sampleTime, 10.f);
+		}
+
+		for (auto i = 0; i < transitionCount; i++) {
+			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 10.f);
 		}
 
 		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
@@ -160,7 +166,8 @@ struct SummonsWidget : ModuleWidget, SvgHelper<SummonsWidget> {
 			if (auto* widget = transitionWidgets[i]) {
 				auto* moduleSummons = static_cast<Summons*>(module);
 				auto& light = moduleSummons->lights[Summons::TRANSITION_LIGHTS + i];
-				widget->setVisible(light.getBrightness() > 0.5f);
+				// Assumes that this is only for transition widgets, which have exactly one shape
+				widget->svg->handle->shapes[0].opacity = rack::clamp(light.getBrightness());
 			}
 		}
 
@@ -202,7 +209,9 @@ void SummonsWidget::load() {
 			svg->handle = image;
 			widget->setSvg(svg);
 			addChild(widget);
-			widget->setVisible(false);
+			widget->setVisible(true);
+			// Make transparent to start; SVG is always one shape
+			widget->svg->handle->shapes[0].opacity = 0.f;
 			// Add widget to local array
 			auto i = transitionIdToIndex(id);
 			// Assumes that i is always a valid index
