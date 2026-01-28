@@ -156,6 +156,7 @@ struct Summons : Module {
 		for (size_t i = 0; i < transitions.size(); i++) {
 			// Hold just long enough to consistently see pentagram at ~180 BPM with 100% chaos
 			lights[TRANSITION_LIGHTS + i].setBrightnessSmooth(brightnesses[i], args.sampleTime, 1.75f);
+			brightnesses[i] = 0.f;
 		}
 
 		outputs[CV_OUTPUT].setVoltage(params[KNOB_PARAMS + index].value);
@@ -246,7 +247,7 @@ void SummonsWidget::load() {
 			widget->svg->handle->shapes[0].opacity = 0.f;
 			// Add widget to local array (assumes i is always a valid index)
 			if (transitionWidgets[t.index] != nullptr) {
-				DEBUG("Overwriting widget at index %d, ptr = %x", t.index, transitionWidgets[t.index]);
+				DEBUG("Overwriting widget at index %d", t.index);
 				delete transitionWidgets[t.index];
 			}
 			transitionWidgets[t.index] = widget;
